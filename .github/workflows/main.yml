@@ -22,11 +22,11 @@ jobs:
             --authkey=${TAILSCALE_AUTHKEY} \
             --hostname=github-macos
 
-      - name: Set password for runner user
+      - name: Set password for runner (macOS)
         env:
           VNC_PASSWORD: ${{ secrets.VNC_PASSWORD }}
         run: |
-          echo "runner:${VNC_PASSWORD}" | sudo chpasswd
+          sudo dscl . -passwd /Users/runner "$VNC_PASSWORD"
 
       - name: Enable Screen Sharing (VNC)
         run: |
