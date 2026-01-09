@@ -1,4 +1,4 @@
-name: MacRDP-Tailscale
+name: Mac-Tailscale-VNC
 
 on:
   workflow_dispatch:
@@ -6,7 +6,7 @@ on:
 jobs:
   macos:
     runs-on: macos-latest
-    name: MacOS with Tailscale
+    name: macOS Remote Desktop
 
     steps:
       - name: Install Tailscale
@@ -20,9 +20,13 @@ jobs:
           sudo tailscaled install-system-daemon
           sudo tailscale up \
             --authkey=${TAILSCALE_AUTHKEY} \
-            --hostname=github-macos \
-            --accept-routes \
-            --accept-dns
+            --hostname=github-macos
+
+      - name: Set password for runner user
+        env:
+          VNC_PASSWORD: ${{ secrets.VNC_PASSWORD }}
+        run: |
+          echo "runner:${VNC_PASSWORD}" | sudo chpasswd
 
       - name: Enable Screen Sharing (VNC)
         run: |
@@ -33,7 +37,8 @@ jobs:
 
       - name: Show Tailscale IP
         run: |
+          echo "Tailscale IP:"
           tailscale ip -4
 
-      - name: Keep VM Alive
+      - name: Keep session alive
         uses: mxschmitt/action-tmate@v2
