@@ -22,18 +22,22 @@ jobs:
             --authkey=${TAILSCALE_AUTHKEY} \
             --hostname=github-macos
 
-      - name: Set password for runner (macOS)
-        env:
-          VNC_PASSWORD: ${{ secrets.VNC_PASSWORD }}
-        run: |
-          sudo dscl . -passwd /Users/runner "$VNC_PASSWORD"
-
       - name: Enable Screen Sharing (VNC)
         run: |
           sudo /System/Library/CoreServices/RemoteManagement/ARDAgent.app/Contents/Resources/kickstart \
             -activate -configure -access -on \
-            -configure -users runner \
             -configure -restart -agent -privs -all
+
+      - name: Set VNC legacy password (NO user password)
+        env:
+          VNC_LEGACY_PASSWORD: ${{ secrets.VNC_LEGACY_PASSWORD }}
+        run: |
+          echo "$VNC_LEGACY_PASSWORD" | \
+          sudo /System/Library/CoreServices/RemoteManagement/ARDAgent.app/Contents/Resources/vncpasswd -f > ~/vncpass
+          sudo mkdir -p /Library/Preferences/com.apple.VNCSettings
+          sudo mv ~/vncpass /Library/Preferences/com.apple.VNCSettings/vncpass
+          sudo chmod 600 /Library/Preferences/com.apple.VNCSettings/vncpass
+          sudo chown root:wheel /Library/Preferences/com.apple.VNCSettings/vncpass
 
       - name: Show Tailscale IP
         run: |
