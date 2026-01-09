@@ -1,4 +1,4 @@
-name: Mac-Tailscale-VNC
+name: MacRDP-Tailscale
 
 on:
   workflow_dispatch:
@@ -6,7 +6,7 @@ on:
 jobs:
   macos:
     runs-on: macos-latest
-    name: macOS Remote Desktop
+    name: MacOS with Tailscale
 
     steps:
       - name: Install Tailscale
@@ -20,29 +20,20 @@ jobs:
           sudo tailscaled install-system-daemon
           sudo tailscale up \
             --authkey=${TAILSCALE_AUTHKEY} \
-            --hostname=github-macos
+            --hostname=github-macos \
+            --accept-routes \
+            --accept-dns
 
       - name: Enable Screen Sharing (VNC)
         run: |
           sudo /System/Library/CoreServices/RemoteManagement/ARDAgent.app/Contents/Resources/kickstart \
             -activate -configure -access -on \
+            -configure -users runner \
             -configure -restart -agent -privs -all
-
-      - name: Set VNC legacy password (NO user password)
-        env:
-          VNC_LEGACY_PASSWORD: ${{ secrets.VNC_LEGACY_PASSWORD }}
-        run: |
-          echo "$VNC_LEGACY_PASSWORD" | \
-          sudo /System/Library/CoreServices/RemoteManagement/ARDAgent.app/Contents/Resources/vncpasswd -f > ~/vncpass
-          sudo mkdir -p /Library/Preferences/com.apple.VNCSettings
-          sudo mv ~/vncpass /Library/Preferences/com.apple.VNCSettings/vncpass
-          sudo chmod 600 /Library/Preferences/com.apple.VNCSettings/vncpass
-          sudo chown root:wheel /Library/Preferences/com.apple.VNCSettings/vncpass
 
       - name: Show Tailscale IP
         run: |
-          echo "Tailscale IP:"
           tailscale ip -4
 
-      - name: Keep session alive
+      - name: Keep VM Alive
         uses: mxschmitt/action-tmate@v2
