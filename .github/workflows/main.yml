@@ -1,4 +1,4 @@
-name: macOS + Tailscale + noVNC (FINAL)
+name: macOS + Tailscale + noVNC (PEP668 FIX)
 
 on:
   workflow_dispatch:
@@ -11,13 +11,14 @@ jobs:
     steps:
       - name: Install dependencies
         run: |
-          brew install tailscale
-          python3 -m pip install --user websockify
+          brew install tailscale pipx
+          pipx ensurepath
+          pipx install websockify
           git clone https://github.com/novnc/noVNC.git
 
       - name: Start Tailscale
         run: |
-          sudo tailscaled &
+          sudo /opt/homebrew/opt/tailscale/bin/tailscaled &
           sleep 5
           sudo tailscale up --authkey=${{ secrets.TS_AUTHKEY }} --hostname=github-macos
 
@@ -32,7 +33,7 @@ jobs:
         run: |
           export PATH="$HOME/.local/bin:$PATH"
           ./noVNC/utils/novnc_proxy --vnc localhost:5900 --listen 6080 &
-          echo "noVNC iniciado en puerto 6080"
+          echo "noVNC iniciado"
 
       - name: Show access info
         run: |
