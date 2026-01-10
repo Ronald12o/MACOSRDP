@@ -1,4 +1,4 @@
-name: macOS GUI via Browser (Solución Final)
+name: macOS Total Control (Inmune a Errores)
 on: workflow_dispatch
 
 jobs:
@@ -7,56 +7,40 @@ jobs:
     timeout-minutes: 360 
 
     steps:
-      - name: Instalar Cloudflared
+      - name: Preparar Sistema e Instalar TigerVNC
         run: |
           brew install cloudflare/cloudflare/cloudflared
-          echo "✅ Cloudflared instalado."
+          # Instalamos un servidor VNC que NO es el de Apple para evitar errores de clave
+          brew install tiger-vnc
+          echo "✅ Software base instalado."
 
-      - name: Configurar VNC y Forzar Gráficos
+      - name: Iniciar Servidor VNC Independiente
         run: |
-          # 1. Configurar VNC de Apple
-          VNC_PASSWORD="Secreto123!"
-          sudo /System/Library/CoreServices/RemoteManagement/ARDAgent.app/Contents/Resources/kickstart \
-          -activate -configure -access -on \
-          -clientopts -setvnclegacy -vnclegacy yes \
-          -clientopts -setvncpw -vncpw "$VNC_PASSWORD" \
-          -restart -agent -privs -all
+          # 1. Crear carpeta de configuración
+          mkdir -p ~/.vnc
+          # 2. Configurar contraseña fija: 123456
+          echo "123456" | vncpasswd -f > ~/.vnc/passwd
+          chmod 600 ~/.vnc/passwd
           
-          # 2. Forzar resolución y despertar sistema
-          sudo /usr/bin/defaults write /Library/Preferences/com.apple.windowserver.plist DisplayResolutionEnabled -bool true
-          # Abrir utilidades básicas para forzar renderizado
-          open -a Finder
-          open -a Calculator
+          # 3. Lanzar el servidor en el puerto 5901 (Resolución HD)
+          # Esto crea un escritorio virtual que SIEMPRE tiene imagen
+          vncserver :1 -geometry 1280x720 -depth 24 -localhost no
+          echo "✅ Servidor TigerVNC iniciado en puerto 5901."
 
-      - name: Instalar y Lanzar noVNC Manualmente
+      - name: Túnel de Cloudflare
         run: |
-          # Descargar noVNC directamente desde GitHub
-          curl -L https://github.com/novnc/noVNC/archive/refs/tags/v1.5.0.tar.gz -o novnc.tar.gz
-          tar -xzf novnc.tar.gz
-          cd noVNC-1.5.0
+          # Creamos el túnel directo al nuevo puerto 5901
+          cloudflared tunnel --url tcp://localhost:5901 > tunnel.log 2>&1 &
           
-          # Descargar websockify (el puente necesario)
-          curl -L https://github.com/novnc/websockify/archive/refs/tags/v0.12.0.tar.gz -o websockify.tar.gz
-          tar -xzf websockify.tar.gz
-          mv websockify-0.12.0 utils/websockify
-          
-          # Lanzar el proxy en el puerto 8080 apuntando al VNC local (5900)
-          ./utils/novnc_proxy --vnc localhost:5900 --listen localhost:8080 &
-          echo "✅ Proxy noVNC iniciado."
-
-      - name: Iniciar Túnel y Mostrar Link
-        run: |
-          # Crear túnel hacia el puerto web 8080
-          cloudflared tunnel --url http://localhost:8080 > tunnel.log 2>&1 &
-          
-          sleep 20
+          sleep 15
           echo "-------------------------------------------------------"
-          echo "🔗 LINK PARA EL NAVEGADOR (CHROME/EDGE):"
-          URL=$(grep -oE "https://[a-zA-Z0-9.-]+\.trycloudflare\.com" tunnel.log)
-          echo "$URL/vnc.html?autoconnect=true"
+          echo "🔗 URL PARA TU CMD DE WINDOWS:"
+          URL=$(grep -oE "https://[a-zA-Z0-9.-]+\.trycloudflare\.com" tunnel.log | sed 's/https:\/\///')
+          echo "$URL"
           echo "-------------------------------------------------------"
-          echo "🔑 CONTRASEÑA VNC: Secreto123!"
+          echo "🚀 PASOS EN TU WINDOWS:"
+          echo "1. Abre CMD y pega: .\cloudflared-windows-amd64.exe access tcp --hostname $URL --listener localhost:5901"
+          echo "2. Abre TigerVNC y conéctate a: localhost:5901"
+          echo "3. Password: 123456"
           echo "-------------------------------------------------------"
-          
-          # Mantener vivo 6 horas
           sleep 21600
