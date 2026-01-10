@@ -1,4 +1,4 @@
-name: macOS + Tailscale + noVNC (PEP668 FIX)
+name: macOS VNC Tailscale
 
 on:
   workflow_dispatch:
@@ -9,41 +9,36 @@ jobs:
     timeout-minutes: 360
 
     steps:
-      - name: Install dependencies
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Tailscale
         run: |
-          brew install tailscale pipx
-          pipx ensurepath
-          pipx install websockify
-          git clone https://github.com/novnc/noVNC.git
+          brew update
+          brew install tailscale
 
       - name: Start Tailscale
         run: |
-          sudo /opt/homebrew/opt/tailscale/bin/tailscaled &
+          sudo tailscaled &
           sleep 5
-          sudo tailscale up --authkey=${{ secrets.TS_AUTHKEY }} --hostname=github-macos
+          sudo tailscale up --authkey=${{ secrets.TAILSCALE_AUTHKEY }} --hostname=macos-github
 
-      - name: Enable Screen Sharing (VNC)
+      - name: Enable VNC
         run: |
           sudo /System/Library/CoreServices/RemoteManagement/ARDAgent.app/Contents/Resources/kickstart \
-          -activate -configure -access -on \
-          -users runner -privs -all \
-          -restart -agent
+            -activate -configure -access -on \
+            -configure -users runner \
+            -configure -restart -agent \
+            -privs -all
 
-      - name: Start noVNC (no encryption)
-  run: |
-    export PATH="$HOME/.local/bin:$PATH"
-    ./noVNC/utils/novnc_proxy \
-      --vnc localhost:5900 \
-      --listen 6080 \
-      --heartbeat 30 \
-      --idle-timeout 0 &
-
-      - name: Show access info
+      - name: Set VNC password
         run: |
-          echo "IP Tailscale:"
-          tailscale ip -4
-          echo "URL:"
-          echo "http://IP_TAILSCALE:6080/vnc.html"
+          echo "runner:123456" | sudo chpasswd
 
-      - name: Keep Alive
-        run: sleep 21600
+      - name: Show Tailscale IP
+        run: tailscale ip -4
+
+      - name: Keep alive
+        run: |
+          echo "macOS listo para VNC por Tailscale 🚀"
+          sleep 21600
