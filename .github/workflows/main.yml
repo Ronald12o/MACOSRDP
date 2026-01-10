@@ -9,12 +9,8 @@ jobs:
     timeout-minutes: 360
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
       - name: Install Tailscale
         run: |
-          brew update
           brew install tailscale
 
       - name: Start Tailscale
@@ -23,17 +19,16 @@ jobs:
           sleep 5
           sudo tailscale up --authkey=${{ secrets.TAILSCALE_AUTHKEY }} --hostname=macos-github
 
-      - name: Enable VNC
+      - name: Enable Screen Sharing (VNC)
         run: |
+          sudo defaults write /Library/Preferences/com.apple.VNCSettings.plist Password -string "123456"
+          sudo chmod 600 /Library/Preferences/com.apple.VNCSettings.plist
+
           sudo /System/Library/CoreServices/RemoteManagement/ARDAgent.app/Contents/Resources/kickstart \
             -activate -configure -access -on \
-            -configure -users runner \
+            -configure -allowAccessFor -allUsers \
             -configure -restart -agent \
             -privs -all
-
-      - name: Set runner password
-        run: |
-          sudo dscl . -passwd /Users/runner 123456
 
       - name: Show Tailscale IP
         run: |
@@ -41,5 +36,5 @@ jobs:
 
       - name: Keep alive
         run: |
-          echo "macOS listo para VNC 🚀"
+          echo "macOS VNC listo 🚀"
           sleep 21600
