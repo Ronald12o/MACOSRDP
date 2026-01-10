@@ -1,4 +1,4 @@
-name: macOS GUI via Browser (noVNC)
+name: macOS GUI via Browser (Solución Final)
 on: workflow_dispatch
 
 jobs:
@@ -7,14 +7,12 @@ jobs:
     timeout-minutes: 360 
 
     steps:
-      - name: Instalar Dependencias
+      - name: Instalar Cloudflared
         run: |
           brew install cloudflare/cloudflare/cloudflared
-          # Instalar noVNC para ver la pantalla en el navegador
-          brew install novnc
-          echo "✅ Dependencias instaladas."
+          echo "✅ Cloudflared instalado."
 
-      - name: Configurar VNC y Forzar Salida de Video
+      - name: Configurar VNC y Forzar Gráficos
         run: |
           # 1. Configurar VNC de Apple
           VNC_PASSWORD="Secreto123!"
@@ -24,28 +22,40 @@ jobs:
           -clientopts -setvncpw -vncpw "$VNC_PASSWORD" \
           -restart -agent -privs -all
           
-          # 2. Truco para "despertar" el monitor virtual
-          # Abrimos varias apps y forzamos resolución
+          # 2. Forzar resolución y despertar sistema
           sudo /usr/bin/defaults write /Library/Preferences/com.apple.windowserver.plist DisplayResolutionEnabled -bool true
+          # Abrir utilidades básicas para forzar renderizado
           open -a Finder
-          open -a System\ Settings
+          open -a Calculator
 
-      - name: Iniciar Proxy Web (noVNC) y Túnel
+      - name: Instalar y Lanzar noVNC Manualmente
         run: |
-          # 1. Iniciar noVNC en el puerto 8080 (convierte VNC a Web)
-          # Usamos la ruta de brew para websockify
-          $(brew --prefix novnc)/bin/novnc_proxy --vnc localhost:5900 --listen localhost:8080 &
+          # Descargar noVNC directamente desde GitHub
+          curl -L https://github.com/novnc/noVNC/archive/refs/tags/v1.5.0.tar.gz -o novnc.tar.gz
+          tar -xzf novnc.tar.gz
+          cd noVNC-1.5.0
           
-          # 2. Crear túnel de Cloudflare hacia el puerto WEB (8080)
+          # Descargar websockify (el puente necesario)
+          curl -L https://github.com/novnc/websockify/archive/refs/tags/v0.12.0.tar.gz -o websockify.tar.gz
+          tar -xzf websockify.tar.gz
+          mv websockify-0.12.0 utils/websockify
+          
+          # Lanzar el proxy en el puerto 8080 apuntando al VNC local (5900)
+          ./utils/novnc_proxy --vnc localhost:5900 --listen localhost:8080 &
+          echo "✅ Proxy noVNC iniciado."
+
+      - name: Iniciar Túnel y Mostrar Link
+        run: |
+          # Crear túnel hacia el puerto web 8080
           cloudflared tunnel --url http://localhost:8080 > tunnel.log 2>&1 &
           
-          sleep 15
+          sleep 20
           echo "-------------------------------------------------------"
-          echo "🔗 LINK PARA VER LA MAC EN TU NAVEGADOR:"
+          echo "🔗 LINK PARA EL NAVEGADOR (CHROME/EDGE):"
           URL=$(grep -oE "https://[a-zA-Z0-9.-]+\.trycloudflare\.com" tunnel.log)
-          echo "$URL/vnc.html?autoconnect=true&password=Secreto123!"
+          echo "$URL/vnc.html?autoconnect=true"
           echo "-------------------------------------------------------"
-          echo "⚠️ IMPORTANTE: Si te pide contraseña en la web, es: Secreto123!"
+          echo "🔑 CONTRASEÑA VNC: Secreto123!"
           echo "-------------------------------------------------------"
           
           # Mantener vivo 6 horas
