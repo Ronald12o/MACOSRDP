@@ -1,4 +1,4 @@
-name: macOS + Tailscale + VNC FIX
+name: macOS + Tailscale + VNC PASSWORD
 
 on:
   workflow_dispatch:
@@ -19,15 +19,33 @@ jobs:
           sleep 5
           sudo tailscale up --authkey=${{ secrets.TS_AUTHKEY }} --hostname=github-macos
 
-      - name: Enable Screen Sharing (NO password)
+      - name: Enable Screen Sharing
         run: |
           sudo /System/Library/CoreServices/RemoteManagement/ARDAgent.app/Contents/Resources/kickstart \
           -activate -configure -access -on \
           -users runner -privs -all \
           -restart -agent
 
-      - name: Show IP
-        run: tailscale ip -4
+      - name: Enable VNC Legacy Auth
+        run: |
+          sudo defaults write /Library/Preferences/com.apple.RemoteManagement VNCAlwaysStartOnConsole -bool true
+          sudo defaults write /Library/Preferences/com.apple.RemoteManagement VNCLegacyConnectionsEnabled -bool true
+
+      - name: Set VNC Password
+        run: |
+          echo "github123" | sudo perl -we 'print pack("H*", unpack("H*", <>))' > /tmp/vncpass
+          sudo mv /tmp/vncpass /Library/Preferences/com.apple.VNCSettings.txt
+          sudo chmod 600 /Library/Preferences/com.apple.VNCSettings.txt
+
+      - name: Restart VNC services
+        run: |
+          sudo pkill -f ARDAgent || true
+          sudo /System/Library/CoreServices/RemoteManagement/ARDAgent.app/Contents/Resources/kickstart \
+          -restart -agent
+
+      - name: Show Tailscale IP
+        run: |
+          tailscale ip -4
 
       - name: Keep Alive
         run: sleep 21600
