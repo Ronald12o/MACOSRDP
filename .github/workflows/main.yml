@@ -1,4 +1,4 @@
-name: macOS VNC Tailscale
+name: macOS NoMachine Tailscale
 
 on:
   workflow_dispatch:
@@ -17,18 +17,18 @@ jobs:
         run: |
           sudo tailscaled &
           sleep 5
-          sudo tailscale up --authkey=${{ secrets.TAILSCALE_AUTHKEY }} --hostname=macos-github
+          sudo tailscale up --authkey=${{ secrets.TAILSCALE_AUTHKEY }} --hostname=macos-nx
 
-      - name: Enable Screen Sharing (VNC)
+      - name: Install NoMachine
         run: |
-          sudo defaults write /Library/Preferences/com.apple.VNCSettings.plist Password -string "123456"
-          sudo chmod 600 /Library/Preferences/com.apple.VNCSettings.plist
+          curl -L https://download.nomachine.com/download/8.11/MacOS/nomachine_8.11.3_1.dmg -o nomachine.dmg
+          hdiutil attach nomachine.dmg
+          sudo installer -pkg /Volumes/NoMachine/NoMachine.pkg -target /
+          hdiutil detach /Volumes/NoMachine
 
-          sudo /System/Library/CoreServices/RemoteManagement/ARDAgent.app/Contents/Resources/kickstart \
-            -activate -configure -access -on \
-            -configure -allowAccessFor -allUsers \
-            -configure -restart -agent \
-            -privs -all
+      - name: Enable NoMachine service
+        run: |
+          sudo /Applications/NoMachine.app/Contents/MacOS/nxserver --start
 
       - name: Show Tailscale IP
         run: |
@@ -36,5 +36,6 @@ jobs:
 
       - name: Keep alive
         run: |
-          echo "macOS VNC listo 🚀"
+          echo "macOS listo para NoMachine 🚀"
           sleep 21600
+
