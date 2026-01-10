@@ -1,24 +1,40 @@
-name: MacRDP
-on: 
+name: macOS + Tailscale + VNC
+
+on:
   workflow_dispatch:
+
 jobs:
-  build:
-    name: MacRDP
+  macos:
     runs-on: macos-latest
-    
-    steps:                 
-    - name: Enabling Remote Access
-      env:
-        NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
-      run: |
-          curl -s -o start.sh -L "https://raw.githubusercontent.com/JohnnyNetsec/github-vm/main/mac/start.sh"
-          chmod +x start.sh
-          bash start.sh "$NGROK_AUTH_TOKEN"
-          
-    - name: Log In Details To VNC Server
-      run: |
-         chmod +x login.sh
-         bash login.sh
-         
-    - name: MacOS System running...
-      uses: mxschmitt/action-tmate@v2
+    timeout-minutes: 360
+
+    steps:
+      - name: Install Tailscale
+        run: |
+          brew install tailscale
+
+      - name: Start Tailscale
+        run: |
+          sudo tailscaled &
+          sleep 5
+          sudo tailscale up --authkey=${{ secrets.TS_AUTHKEY }} --hostname=github-macos
+
+      - name: Enable VNC
+        run: |
+          sudo /System/Library/CoreServices/RemoteManagement/ARDAgent.app/Contents/Resources/kickstart \
+          -activate -configure -access -on \
+          -restart -agent -privs -all
+
+      - name: Set VNC password
+        run: |
+          echo "vncpass123" | perl -we 'print pack("H*", unpack("H*", <>))' | \
+          sudo tee /Library/Preferences/com.apple.VNCSettings.txt
+
+      - name: Show Tailscale IP
+        run: |
+          tailscale ip -4
+
+      - name: Keep Alive
+        run: |
+          echo "macOS listo vía VNC + Tailscale"
+          sleep 21600
