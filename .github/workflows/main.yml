@@ -29,11 +29,14 @@ jobs:
           -users runner -privs -all \
           -restart -agent
 
-      - name: Start noVNC
-        run: |
-          export PATH="$HOME/.local/bin:$PATH"
-          ./noVNC/utils/novnc_proxy --vnc localhost:5900 --listen 6080 &
-          echo "noVNC iniciado"
+      - name: Start noVNC (no encryption)
+  run: |
+    export PATH="$HOME/.local/bin:$PATH"
+    ./noVNC/utils/novnc_proxy \
+      --vnc localhost:5900 \
+      --listen 6080 \
+      --heartbeat 30 \
+      --idle-timeout 0 &
 
       - name: Show access info
         run: |
