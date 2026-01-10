@@ -1,4 +1,4 @@
-name: macOS GUI Directo (6 Horas) - SIN TARJETA
+name: macOS GUI Cloudflare (6 Horas) - EL DEFINITIVO
 
 on: 
   workflow_dispatch:
@@ -9,24 +9,36 @@ jobs:
     timeout-minutes: 360 
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Configurar VNC (Escritorio Gráfico)
+      - name: Instalar Cloudflared y Configurar VNC
         run: |
+          # 1. Instalar Cloudflared
+          brew install cloudflare/cloudflare/cloudflared
+          
+          # 2. Configurar VNC
           VNC_PASSWORD="Secreto123!"
           sudo /System/Library/CoreServices/RemoteManagement/ARDAgent.app/Contents/Resources/kickstart \
           -activate -configure -access -on \
           -clientopts -setvnclegacy -vnclegacy yes \
           -clientopts -setvncpw -vncpw "$VNC_PASSWORD" \
           -restart -agent -privs -all
-          echo "✅ Escritorio remoto activado."
 
-      - name: Iniciar Túnel con tmate
-        uses: mxschmitt/action-tmate@v3
-        with:
-          # Esto crea el túnel y detiene el workflow ahí para que puedas entrar
-          limit-access-to-actor: false 
+          # 3. Iniciar Túnel de Cloudflare
+          # Esto genera una URL pública temporal para el puerto 5900
+          echo "🚀 Iniciando túnel..."
+          cloudflared tunnel --url tcp://localhost:5900 > tunnel.log 2>&1 &
+          
+          sleep 10 # Esperar a que genere el link
 
-      - name: Mantener vivo
-        run: sleep 21600
+      - name: Obtener Link de Conexión
+        run: |
+          echo "-------------------------------------------------------"
+          echo "🔗 TU URL DE CONEXIÓN ES:"
+          grep -oE "https://[a-zA-Z0-9.-]+\.trycloudflare\.com" tunnel.log | sed 's/https:\/\///' || echo "Reintentando..."
+          echo "-------------------------------------------------------"
+          echo "👀 PASOS PARA WINDOWS:"
+          echo "1. Descarga cloudflared en tu PC (google: cloudflared windows download)"
+          echo "2. En tu CMD de Windows escribe:"
+          echo "   cloudflared access tcp --hostname TU_URL_AQUÍ --listener localhost:5900"
+          echo "3. Abre VNC Viewer en localhost:5900"
+          echo "-------------------------------------------------------"
+          sleep 21600
