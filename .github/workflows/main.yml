@@ -1,4 +1,4 @@
-name: macOS Total Control (Inmune a Errores)
+name: macOS Total Control (Ruta Corregida)
 on: workflow_dispatch
 
 jobs:
@@ -7,29 +7,29 @@ jobs:
     timeout-minutes: 360 
 
     steps:
-      - name: Preparar Sistema e Instalar TigerVNC
+      - name: Instalar Herramientas
         run: |
           brew install cloudflare/cloudflare/cloudflared
-          # Instalamos un servidor VNC que NO es el de Apple para evitar errores de clave
           brew install tiger-vnc
-          echo "✅ Software base instalado."
+          echo "✅ Software instalado."
 
-      - name: Iniciar Servidor VNC Independiente
+      - name: Iniciar Servidor VNC (Ruta Forzada)
         run: |
           # 1. Crear carpeta de configuración
           mkdir -p ~/.vnc
-          # 2. Configurar contraseña fija: 123456
-          echo "123456" | vncpasswd -f > ~/.vnc/passwd
+          
+          # 2. Configurar contraseña usando la ruta completa de TigerVNC
+          # Usamos /opt/homebrew/bin/ que es el estándar en macos-latest
+          echo "123456" | /opt/homebrew/bin/vncpasswd -f > ~/.vnc/passwd
           chmod 600 ~/.vnc/passwd
           
-          # 3. Lanzar el servidor en el puerto 5901 (Resolución HD)
-          # Esto crea un escritorio virtual que SIEMPRE tiene imagen
-          vncserver :1 -geometry 1280x720 -depth 24 -localhost no
+          # 3. Lanzar el servidor
+          /opt/homebrew/bin/vncserver :1 -geometry 1280x720 -depth 24 -localhost no
           echo "✅ Servidor TigerVNC iniciado en puerto 5901."
 
       - name: Túnel de Cloudflare
         run: |
-          # Creamos el túnel directo al nuevo puerto 5901
+          # Iniciamos el túnel al puerto 5901
           cloudflared tunnel --url tcp://localhost:5901 > tunnel.log 2>&1 &
           
           sleep 15
@@ -38,9 +38,9 @@ jobs:
           URL=$(grep -oE "https://[a-zA-Z0-9.-]+\.trycloudflare\.com" tunnel.log | sed 's/https:\/\///')
           echo "$URL"
           echo "-------------------------------------------------------"
-          echo "🚀 PASOS EN TU WINDOWS:"
-          echo "1. Abre CMD y pega: .\cloudflared-windows-amd64.exe access tcp --hostname $URL --listener localhost:5901"
-          echo "2. Abre TigerVNC y conéctate a: localhost:5901"
+          echo "🚀 PASOS EN WINDOWS:"
+          echo "1. .\cloudflared-windows-amd64.exe access tcp --hostname $URL --listener localhost:5901"
+          echo "2. En TigerVNC conectar a: localhost:5901"
           echo "3. Password: 123456"
           echo "-------------------------------------------------------"
           sleep 21600
