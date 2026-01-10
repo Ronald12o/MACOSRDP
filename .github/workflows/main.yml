@@ -1,4 +1,4 @@
-name: macOS GUI Remote (6 Horas)
+name: macOS GUI Remote (6 Horas) - FIXED
 
 on: 
   workflow_dispatch:
@@ -6,7 +6,6 @@ on:
 jobs:
   gui-session:
     runs-on: macos-latest
-    # Aumentamos el tiempo de espera al máximo permitido por GitHub (6 horas)
     timeout-minutes: 360 
     
     steps:
@@ -23,11 +22,9 @@ jobs:
       - name: Activar Escritorio Remoto (VNC)
         run: |
           echo "🖥️ Configurando VNC..."
-          # Contraseña para entrar al entorno gráfico. 
-          # PUEDES CAMBIAR "Secreto123!" POR LO QUE QUIERAS.
           VNC_PASSWORD="Secreto123!"
           
-          # Comandos de Apple para forzar el encendido del servidor VNC
+          # Configuración estándar de Apple Remote Desktop
           sudo /System/Library/CoreServices/RemoteManagement/ARDAgent.app/Contents/Resources/kickstart \
           -activate -configure -access -on \
           -clientopts -setvnclegacy -vnclegacy yes \
@@ -39,17 +36,20 @@ jobs:
       - name: Información de Conexión
         run: |
           echo "-------------------------------------------------------"
+          echo "🔍 Verificando instalación..."
+          which tailscale
+          echo "-------------------------------------------------------"
           echo "📡 IP DE TAILSCALE:"
-          TS_IP=$(/Applications/Tailscale.app/Contents/MacOS/Tailscale ip -4)
+          # CORRECCIÓN AQUÍ: Usamos el comando directo, no la ruta absoluta
+          TS_IP=$(tailscale ip -4)
           echo "$TS_IP"
           echo "-------------------------------------------------------"
           echo "👀 CÓMO VER EL ESCRITORIO:"
-          echo "1. Abre tu visor VNC favorito (RealVNC, Remmina, o Screen Sharing en Mac)."
+          echo "1. Abre tu visor VNC (RealVNC, Remmina, o Compartir Pantalla)."
           echo "2. Conéctate a: $TS_IP"
           echo "   (O usa el hostname: github-mac-gui)"
           echo "3. La contraseña es: Secreto123!"
           echo "-------------------------------------------------------"
           echo "⏳ Manteniendo sesión viva por 6 horas..."
           
-          # Esperar 6 horas (21600 segundos)
           sleep 21600
