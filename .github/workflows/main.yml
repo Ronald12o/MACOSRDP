@@ -1,4 +1,4 @@
-name: macOS GUI Force Start
+name: macOS GUI Direct Path
 on: workflow_dispatch
 
 jobs:
@@ -7,27 +7,28 @@ jobs:
     timeout-minutes: 360 
 
     steps:
-      - name: Instalación y Arranque VNC
+      - name: Instalación y Arranque Forzado
         run: |
-          # 1. Instalar todo junto
+          # 1. Instalar herramientas
           brew install cloudflare/cloudflare/cloudflared tiger-vnc
           
-          # 2. Forzar la ruta de Homebrew manualmente para esta sesión
-          export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+          # 2. Definir las rutas exactas basadas en tu log de instalación
+          VNC_BIN="/opt/homebrew/opt/tiger-vnc/bin"
           
-          # 3. Configurar carpeta y contraseña
+          # 3. Configurar carpeta y contraseña usando la ruta absoluta
           mkdir -p ~/.vnc
-          echo "123456" | vncpasswd -f > ~/.vnc/passwd
+          echo "123456" | $VNC_BIN/vncpasswd -f > ~/.vnc/passwd
           chmod 600 ~/.vnc/passwd
           
           # 4. Iniciar el servidor en el puerto 5901
-          vncserver :1 -geometry 1280x720 -depth 24 -localhost no
+          $VNC_BIN/vncserver :1 -geometry 1280x720 -depth 24 -localhost no
           echo "✅ Servidor TigerVNC iniciado correctamente."
 
       - name: Túnel de Cloudflare
         run: |
-          # Iniciar túnel al puerto 5901
-          cloudflared tunnel --url tcp://localhost:5901 > tunnel.log 2>&1 &
+          # Usamos la ruta absoluta de cloudflared también por seguridad
+          CF_BIN="/opt/homebrew/opt/cloudflared/bin/cloudflared"
+          $CF_BIN tunnel --url tcp://localhost:5901 > tunnel.log 2>&1 &
           
           sleep 20
           echo "-------------------------------------------------------"
