@@ -1,4 +1,4 @@
-name: macOS RDP Real
+name: macOS VNC Fix Security
 on: workflow_dispatch
 
 jobs:
@@ -10,36 +10,31 @@ jobs:
       - name: Instalar Cloudflared
         run: brew install cloudflare/cloudflare/cloudflared
 
-      - name: Configurar Escritorio Nativo
+      - name: Configurar Acceso Total
         run: |
-          # 1. Configurar contraseña del VNC de Apple
+          # 1. Configurar VNC con contraseña 123456
           sudo /System/Library/CoreServices/RemoteManagement/ARDAgent.app/Contents/Resources/kickstart \
           -activate -configure -access -on \
           -clientopts -setvnclegacy -vnclegacy yes \
-          -clientopts -setvnpw -vncpw "123456" \
+          -clientopts -setvncpw -vncpw "123456" \
           -restart -agent -privs -all
-          
-          # 2. EL TRUCO PARA LA PANTALLA NEGRA: 
-          # Forzamos al sistema a creer que hay un monitor conectado y despierto
-          sudo defaults write /Library/Preferences/com.apple.windowserver.plist DisplayResolutionEnabled -bool true
-          nohup osascript -e 'tell application "System Events" to repeat
-            key code 123
-            delay 60
-          end repeat' > /dev/null 2>&1 &
+
+          # 2. Comando SECRETO para arreglar el error de seguridad
+          # Esto permite conexiones VNC estándar sin encriptación Apple
+          sudo defaults write /Library/Preferences/com.apple.RemoteManagement VNCAlwaysStartOnConsole -bool true
+          sudo defaults write /Library/Preferences/com.apple.vnclatency.plist "VNCPassword" -string "123456"
 
       - name: Iniciar Túnel
         run: |
-          # El VNC de Apple corre en el puerto 5900
           cloudflared tunnel --url tcp://localhost:5900 > tunnel.log 2>&1 &
           sleep 10
           echo "-------------------------------------------------------"
-          echo "🔗 URL PARA TU CMD DE WINDOWS:"
+          echo "🔗 URL NUEVA:"
           URL=$(grep -oE "https://[a-zA-Z0-9.-]+\.trycloudflare\.com" tunnel.log | sed 's/https:\/\///')
           echo "$URL"
           echo "-------------------------------------------------------"
-          echo "🚀 PASOS EN TU PC:"
-          echo "1. Abre CMD y pega: .\cloudflared-windows-amd64.exe access tcp --hostname $URL --listener localhost:5900"
-          echo "2. Abre TigerVNC y conecta a: localhost:5900"
-          echo "3. Password: 123456"
+          echo "🚀 EN TIGERVNC:"
+          echo "Server: localhost:5900"
+          echo "Password: 123456"
           echo "-------------------------------------------------------"
           sleep 21600
