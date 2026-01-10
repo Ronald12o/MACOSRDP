@@ -1,7 +1,5 @@
-name: macOS GUI Final (Cloudflare)
-
-on: 
-  workflow_dispatch:
+name: macOS GUI via Browser (noVNC)
+on: workflow_dispatch
 
 jobs:
   gui-session:
@@ -9,14 +7,16 @@ jobs:
     timeout-minutes: 360 
 
     steps:
-      - name: Instalar Herramientas
+      - name: Instalar Dependencias
         run: |
           brew install cloudflare/cloudflare/cloudflared
-          echo "✅ Cloudflared instalado."
+          # Instalar noVNC para ver la pantalla en el navegador
+          brew install novnc
+          echo "✅ Dependencias instaladas."
 
-      - name: Configurar VNC y Forzar Gráficos
+      - name: Configurar VNC y Forzar Salida de Video
         run: |
-          # 1. Configurar contraseña y activar VNC
+          # 1. Configurar VNC de Apple
           VNC_PASSWORD="Secreto123!"
           sudo /System/Library/CoreServices/RemoteManagement/ARDAgent.app/Contents/Resources/kickstart \
           -activate -configure -access -on \
@@ -24,36 +24,29 @@ jobs:
           -clientopts -setvncpw -vncpw "$VNC_PASSWORD" \
           -restart -agent -privs -all
           
-          # 2. Forzar al sistema a no dormir y despertar el WindowServer
-          sudo systemsetup -setdisplaysleep Off > /dev/null 2>&1
-          
-          # 3. Lanzar aplicaciones en el espacio de usuario para generar imagen
-          # Esto "obliga" a macOS a dibujar algo en la pantalla virtual
-          gui_user_id=$(id -u)
-          sudo launchctl asuser $gui_user_id open -a Finder
-          sudo launchctl asuser $gui_user_id open -a System\ Settings
-          
-          echo "✅ VNC y Entorno Gráfico listos."
+          # 2. Truco para "despertar" el monitor virtual
+          # Abrimos varias apps y forzamos resolución
+          sudo /usr/bin/defaults write /Library/Preferences/com.apple.windowserver.plist DisplayResolutionEnabled -bool true
+          open -a Finder
+          open -a System\ Settings
 
-      - name: Iniciar Túnel y Mantener Vivo
+      - name: Iniciar Proxy Web (noVNC) y Túnel
         run: |
-          # Iniciar túnel en segundo plano
-          cloudflared tunnel --url tcp://localhost:5900 > tunnel.log 2>&1 &
+          # 1. Iniciar noVNC en el puerto 8080 (convierte VNC a Web)
+          # Usamos la ruta de brew para websockify
+          $(brew --prefix novnc)/bin/novnc_proxy --vnc localhost:5900 --listen localhost:8080 &
           
-          echo "⏳ Esperando 15 segundos para estabilidad..."
+          # 2. Crear túnel de Cloudflare hacia el puerto WEB (8080)
+          cloudflared tunnel --url http://localhost:8080 > tunnel.log 2>&1 &
+          
           sleep 15
-          
           echo "-------------------------------------------------------"
-          echo "🔗 TU URL DE CONEXIÓN ES:"
-          # Extraer la URL de Cloudflare del log
-          grep -oE "https://[a-zA-Z0-9.-]+\.trycloudflare\.com" tunnel.log | sed 's/https:\/\///'
+          echo "🔗 LINK PARA VER LA MAC EN TU NAVEGADOR:"
+          URL=$(grep -oE "https://[a-zA-Z0-9.-]+\.trycloudflare\.com" tunnel.log)
+          echo "$URL/vnc.html?autoconnect=true&password=Secreto123!"
           echo "-------------------------------------------------------"
-          echo "👀 PASOS PARA CONECTAR DESDE WINDOWS:"
-          echo "1. Abre tu CMD en Windows."
-          echo "2. Ejecuta: .\cloudflared-windows-amd64.exe access tcp --hostname TU_URL_AQUÍ --listener localhost:5900"
-          echo "3. Abre TigerVNC y conéctate a: localhost:5900"
-          echo "4. Password: Secreto123!"
+          echo "⚠️ IMPORTANTE: Si te pide contraseña en la web, es: Secreto123!"
           echo "-------------------------------------------------------"
           
-          # Mantener el workflow vivo por 6 horas
+          # Mantener vivo 6 horas
           sleep 21600
