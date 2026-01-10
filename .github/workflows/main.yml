@@ -1,4 +1,4 @@
-name: macOS GUI via Docker (Final)
+name: macOS GUI Final Emergency
 on: workflow_dispatch
 
 jobs:
@@ -7,35 +7,44 @@ jobs:
     timeout-minutes: 360 
 
     steps:
-      - name: Instalar Cloudflared
-        run: brew install cloudflare/cloudflare/cloudflared
-
-      - name: Levantar Escritorio Docker
+      - name: Instalación Forzada
         run: |
-          # 1. Iniciar Docker en macOS (tarda un poco)
-          # Nota: GitHub Actions macOS tiene Docker instalado pero a veces hay que despertarlo
+          brew install cloudflare/cloudflare/cloudflared tiger-vnc
           
-          # 2. Correr un contenedor con Escritorio Web y VNC integrado
-          # Usamos la imagen de Dorowu que es super estable
-          docker run -d -p 5900:5900 -p 80:80 --privileged \
-          -e VNC_PASSWORD=123456 \
-          -e RESOLUTION=1280x720 \
-          dorowu/ubuntu-desktop-lxde-vnc
+      - name: Ejecución por Fuerza Bruta
+        run: |
+          # 1. Definir la ruta que tu log confirmó
+          VNC_DIR="/opt/homebrew/Cellar/tiger-vnc/1.15.0/bin"
           
-          echo "✅ Contenedor de escritorio iniciado."
+          # 2. Listar archivos para confirmar (verás esto en el log)
+          echo "Contenido de la carpeta bin:"
+          ls -l $VNC_DIR
+          
+          # 3. Forzar permisos de ejecución
+          sudo chmod +x $VNC_DIR/vncpasswd
+          sudo chmod +x $VNC_DIR/vncserver
+          
+          # 4. Configurar VNC
+          mkdir -p ~/.vnc
+          echo "123456" | $VNC_DIR/vncpasswd -f > ~/.vnc/passwd
+          sudo chmod 600 ~/.vnc/passwd
+          
+          # 5. Lanzar el servidor
+          $VNC_DIR/vncserver :1 -geometry 1280x720 -depth 24 -localhost no
+          echo "✅ Servidor iniciado."
 
       - name: Iniciar Túnel
         run: |
-          # Crear túnel al puerto 80 (Escritorio Web)
-          cloudflared tunnel --url http://localhost:80 > tunnel.log 2>&1 &
+          # Usamos la ruta de cloudflared que también vimos en tu log
+          CF_BIN="/opt/homebrew/Cellar/cloudflared/2025.11.1/bin/cloudflared"
+          $CF_BIN tunnel --url tcp://localhost:5901 > tunnel.log 2>&1 &
           
-          sleep 30
+          sleep 20
           echo "-------------------------------------------------------"
-          echo "🔗 TU ESCRITORIO WEB ESTÁ AQUÍ:"
-          URL=$(grep -oE "https://[a-zA-Z0-9.-]+\.trycloudflare\.com" tunnel.log)
+          echo "🔗 URL PARA TU CMD DE WINDOWS:"
+          URL=$(grep -oE "https://[a-zA-Z0-9.-]+\.trycloudflare\.com" tunnel.log | sed 's/https:\/\///')
           echo "$URL"
           echo "-------------------------------------------------------"
-          echo "🔑 Password si la pide: 123456"
+          echo "🚀 Password: 123456 | Puerto: 5901"
           echo "-------------------------------------------------------"
-          
           sleep 21600
