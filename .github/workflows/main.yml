@@ -1,4 +1,4 @@
-name: macOS GUI Remote (6 Horas) - ULTIMATE
+name: macOS GUI Directo (6 Horas) - SIN TARJETA
 
 on: 
   workflow_dispatch:
@@ -7,58 +7,26 @@ jobs:
   gui-session:
     runs-on: macos-latest
     timeout-minutes: 360 
-    
+
     steps:
-      - name: Checkout Code
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Conectar a Tailscale
-        uses: tailscale/github-action@v3
-        with:
-          authkey: ${{ secrets.TAILSCALE_AUTHKEY }}
-          version: latest
-          args: --ssh --hostname=github-mac-gui
-
-      - name: Activar Escritorio Remoto (VNC)
+      - name: Configurar VNC (Escritorio Gráfico)
         run: |
-          echo "🖥️ Configurando VNC..."
           VNC_PASSWORD="Secreto123!"
-          
-          # Configuración de Apple Remote Desktop
           sudo /System/Library/CoreServices/RemoteManagement/ARDAgent.app/Contents/Resources/kickstart \
           -activate -configure -access -on \
           -clientopts -setvnclegacy -vnclegacy yes \
           -clientopts -setvncpw -vncpw "$VNC_PASSWORD" \
           -restart -agent -privs -all
-          
-          echo "✅ VNC Activado."
+          echo "✅ Escritorio remoto activado."
 
-      - name: Obtener IP y Mantener Vivo
-        run: |
-          echo "⏳ Esperando a que el túnel Tailscale se estabilice..."
-          sleep 10
-          
-          # Intentar obtener la IP con reintentos
-          for i in {1..5}; do
-            TS_IP=$(tailscale ip -4) && break || sleep 5
-          done
+      - name: Iniciar Túnel con tmate
+        uses: mxschmitt/action-tmate@v3
+        with:
+          # Esto crea el túnel y detiene el workflow ahí para que puedas entrar
+          limit-access-to-actor: false 
 
-          if [ -z "$TS_IP" ]; then
-            echo "❌ No se pudo obtener la IP de Tailscale. Revisa el Auth Key."
-            exit 1
-          fi
-
-          echo "-------------------------------------------------------"
-          echo "📡 CONEXIÓN EXITOSA"
-          echo "IP DE TAILSCALE: $TS_IP"
-          echo "HOSTNAME: github-mac-gui"
-          echo "-------------------------------------------------------"
-          echo "👀 PASOS PARA CONECTAR:"
-          echo "1. Asegúrate de que TU PC tenga Tailscale activo."
-          echo "2. Usa un cliente VNC y conéctate a: $TS_IP"
-          echo "3. Password: Secreto123!"
-          echo "-------------------------------------------------------"
-          
-          # Mantener la sesión viva
-          echo "⏳ El runner estará activo por 6 horas. No cierres este log."
-          sleep 21600
+      - name: Mantener vivo
+        run: sleep 21600
