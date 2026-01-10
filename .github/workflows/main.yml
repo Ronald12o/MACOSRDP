@@ -1,4 +1,4 @@
-name: macOS GUI Absolute Path Fix
+name: macOS GUI via Docker (Final)
 on: workflow_dispatch
 
 jobs:
@@ -7,38 +7,35 @@ jobs:
     timeout-minutes: 360 
 
     steps:
-      - name: Instalación y Localización
+      - name: Instalar Cloudflared
+        run: brew install cloudflare/cloudflare/cloudflared
+
+      - name: Levantar Escritorio Docker
         run: |
-          # 1. Instalar herramientas
-          brew install cloudflare/cloudflare/cloudflared tiger-vnc
+          # 1. Iniciar Docker en macOS (tarda un poco)
+          # Nota: GitHub Actions macOS tiene Docker instalado pero a veces hay que despertarlo
           
-          # 2. Encontrar la ruta real de forma dinámica y guardarla
-          VNC_PATH=$(ls -d /opt/homebrew/Cellar/tiger-vnc/*/bin | head -n 1)
-          CF_PATH=$(ls -d /opt/homebrew/Cellar/cloudflared/*/bin | head -n 1)
+          # 2. Correr un contenedor con Escritorio Web y VNC integrado
+          # Usamos la imagen de Dorowu que es super estable
+          docker run -d -p 5900:5900 -p 80:80 --privileged \
+          -e VNC_PASSWORD=123456 \
+          -e RESOLUTION=1280x720 \
+          dorowu/ubuntu-desktop-lxde-vnc
           
-          echo "VNC está en: $VNC_PATH"
-          echo "Cloudflared está en: $CF_PATH"
+          echo "✅ Contenedor de escritorio iniciado."
+
+      - name: Iniciar Túnel
+        run: |
+          # Crear túnel al puerto 80 (Escritorio Web)
+          cloudflared tunnel --url http://localhost:80 > tunnel.log 2>&1 &
           
-          # 3. Configurar carpeta y contraseña
-          mkdir -p ~/.vnc
-          echo "123456" | $VNC_PATH/vncpasswd -f > ~/.vnc/passwd
-          chmod 600 ~/.vnc/passwd
-          
-          # 4. Iniciar el servidor
-          $VNC_PATH/vncserver :1 -geometry 1280x720 -depth 24 -localhost no
-          
-          # 5. Iniciar túnel
-          $CF_PATH/cloudflared tunnel --url tcp://localhost:5901 > tunnel.log 2>&1 &
-          
-          sleep 20
+          sleep 30
           echo "-------------------------------------------------------"
-          echo "🔗 URL PARA TU CMD DE WINDOWS:"
-          URL=$(grep -oE "https://[a-zA-Z0-9.-]+\.trycloudflare\.com" tunnel.log | sed 's/https:\/\///')
+          echo "🔗 TU ESCRITORIO WEB ESTÁ AQUÍ:"
+          URL=$(grep -oE "https://[a-zA-Z0-9.-]+\.trycloudflare\.com" tunnel.log)
           echo "$URL"
           echo "-------------------------------------------------------"
-          echo "🚀 PASOS EN WINDOWS:"
-          echo "1. .\cloudflared-windows-amd64.exe access tcp --hostname $URL --listener localhost:5901"
-          echo "2. TigerVNC: localhost:5901 (Clave: 123456)"
+          echo "🔑 Password si la pide: 123456"
           echo "-------------------------------------------------------"
           
           sleep 21600
