@@ -31,14 +31,15 @@ jobs:
             -configure -restart -agent \
             -privs -all
 
-      - name: Set VNC password
+      - name: Set runner password
         run: |
-          echo "runner:123456" | sudo chpasswd
+          sudo dscl . -passwd /Users/runner 123456
 
       - name: Show Tailscale IP
-        run: tailscale ip -4
+        run: |
+          tailscale ip -4
 
       - name: Keep alive
         run: |
-          echo "macOS listo para VNC por Tailscale 🚀"
+          echo "macOS listo para VNC 🚀"
           sleep 21600
