@@ -19,16 +19,17 @@ jobs:
           sleep 5
           sudo tailscale up --authkey=${{ secrets.TAILSCALE_AUTHKEY }} --hostname=macos-nx
 
-      - name: Install NoMachine
+      - name: Install NoMachine (brew)
         run: |
-          curl -L https://download.nomachine.com/download/8.11/MacOS/nomachine_8.11.3_1.dmg -o nomachine.dmg
-          hdiutil attach nomachine.dmg
-          sudo installer -pkg /Volumes/NoMachine/NoMachine.pkg -target /
-          hdiutil detach /Volumes/NoMachine
+          brew install --cask nomachine
 
-      - name: Enable NoMachine service
+      - name: Start NoMachine service
         run: |
           sudo /Applications/NoMachine.app/Contents/MacOS/nxserver --start
+
+      - name: Verify NoMachine
+        run: |
+          /Applications/NoMachine.app/Contents/MacOS/nxserver --status
 
       - name: Show Tailscale IP
         run: |
@@ -38,4 +39,3 @@ jobs:
         run: |
           echo "macOS listo para NoMachine 🚀"
           sleep 21600
-
