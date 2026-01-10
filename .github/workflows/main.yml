@@ -1,4 +1,4 @@
-name: macOS + Tailscale + VNC PASSWORD
+name: macOS + Tailscale + noVNC
 
 on:
   workflow_dispatch:
@@ -9,9 +9,9 @@ jobs:
     timeout-minutes: 360
 
     steps:
-      - name: Install Tailscale
+      - name: Install dependencies
         run: |
-          brew install tailscale
+          brew install tailscale novnc websockify
 
       - name: Start Tailscale
         run: |
@@ -19,33 +19,24 @@ jobs:
           sleep 5
           sudo tailscale up --authkey=${{ secrets.TS_AUTHKEY }} --hostname=github-macos
 
-      - name: Enable Screen Sharing
+      - name: Enable Screen Sharing (VNC)
         run: |
           sudo /System/Library/CoreServices/RemoteManagement/ARDAgent.app/Contents/Resources/kickstart \
           -activate -configure -access -on \
           -users runner -privs -all \
           -restart -agent
 
-      - name: Enable VNC Legacy Auth
+      - name: Start noVNC
         run: |
-          sudo defaults write /Library/Preferences/com.apple.RemoteManagement VNCAlwaysStartOnConsole -bool true
-          sudo defaults write /Library/Preferences/com.apple.RemoteManagement VNCLegacyConnectionsEnabled -bool true
+          websockify --web=/opt/homebrew/share/novnc 6080 localhost:5900 &
+          echo "noVNC iniciado en puerto 6080"
 
-      - name: Set VNC Password
+      - name: Show access info
         run: |
-          echo "github123" | sudo perl -we 'print pack("H*", unpack("H*", <>))' > /tmp/vncpass
-          sudo mv /tmp/vncpass /Library/Preferences/com.apple.VNCSettings.txt
-          sudo chmod 600 /Library/Preferences/com.apple.VNCSettings.txt
-
-      - name: Restart VNC services
-        run: |
-          sudo pkill -f ARDAgent || true
-          sudo /System/Library/CoreServices/RemoteManagement/ARDAgent.app/Contents/Resources/kickstart \
-          -restart -agent
-
-      - name: Show Tailscale IP
-        run: |
+          echo "IP Tailscale:"
           tailscale ip -4
+          echo "Accede en el navegador:"
+          echo "http://IP_TAILSCALE:6080/vnc.html"
 
       - name: Keep Alive
         run: sleep 21600
