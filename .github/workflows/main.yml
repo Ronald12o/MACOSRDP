@@ -1,4 +1,4 @@
-name: macOS GUI Final Emergency
+name: macOS RDP Real
 on: workflow_dispatch
 
 jobs:
@@ -7,44 +7,39 @@ jobs:
     timeout-minutes: 360 
 
     steps:
-      - name: Instalación Forzada
+      - name: Instalar Cloudflared
+        run: brew install cloudflare/cloudflare/cloudflared
+
+      - name: Configurar Escritorio Nativo
         run: |
-          brew install cloudflare/cloudflare/cloudflared tiger-vnc
+          # 1. Configurar contraseña del VNC de Apple
+          sudo /System/Library/CoreServices/RemoteManagement/ARDAgent.app/Contents/Resources/kickstart \
+          -activate -configure -access -on \
+          -clientopts -setvnclegacy -vnclegacy yes \
+          -clientopts -setvnpw -vncpw "123456" \
+          -restart -agent -privs -all
           
-      - name: Ejecución por Fuerza Bruta
-        run: |
-          # 1. Definir la ruta que tu log confirmó
-          VNC_DIR="/opt/homebrew/Cellar/tiger-vnc/1.15.0/bin"
-          
-          # 2. Listar archivos para confirmar (verás esto en el log)
-          echo "Contenido de la carpeta bin:"
-          ls -l $VNC_DIR
-          
-          # 3. Forzar permisos de ejecución
-          sudo chmod +x $VNC_DIR/vncpasswd
-          sudo chmod +x $VNC_DIR/vncserver
-          
-          # 4. Configurar VNC
-          mkdir -p ~/.vnc
-          echo "123456" | $VNC_DIR/vncpasswd -f > ~/.vnc/passwd
-          sudo chmod 600 ~/.vnc/passwd
-          
-          # 5. Lanzar el servidor
-          $VNC_DIR/vncserver :1 -geometry 1280x720 -depth 24 -localhost no
-          echo "✅ Servidor iniciado."
+          # 2. EL TRUCO PARA LA PANTALLA NEGRA: 
+          # Forzamos al sistema a creer que hay un monitor conectado y despierto
+          sudo defaults write /Library/Preferences/com.apple.windowserver.plist DisplayResolutionEnabled -bool true
+          nohup osascript -e 'tell application "System Events" to repeat
+            key code 123
+            delay 60
+          end repeat' > /dev/null 2>&1 &
 
       - name: Iniciar Túnel
         run: |
-          # Usamos la ruta de cloudflared que también vimos en tu log
-          CF_BIN="/opt/homebrew/Cellar/cloudflared/2025.11.1/bin/cloudflared"
-          $CF_BIN tunnel --url tcp://localhost:5901 > tunnel.log 2>&1 &
-          
-          sleep 20
+          # El VNC de Apple corre en el puerto 5900
+          cloudflared tunnel --url tcp://localhost:5900 > tunnel.log 2>&1 &
+          sleep 10
           echo "-------------------------------------------------------"
           echo "🔗 URL PARA TU CMD DE WINDOWS:"
           URL=$(grep -oE "https://[a-zA-Z0-9.-]+\.trycloudflare\.com" tunnel.log | sed 's/https:\/\///')
           echo "$URL"
           echo "-------------------------------------------------------"
-          echo "🚀 Password: 123456 | Puerto: 5901"
+          echo "🚀 PASOS EN TU PC:"
+          echo "1. Abre CMD y pega: .\cloudflared-windows-amd64.exe access tcp --hostname $URL --listener localhost:5900"
+          echo "2. Abre TigerVNC y conecta a: localhost:5900"
+          echo "3. Password: 123456"
           echo "-------------------------------------------------------"
           sleep 21600
