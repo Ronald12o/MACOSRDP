@@ -1,4 +1,4 @@
-name: macOS GUI Cloudflare (6 Horas) - EL DEFINITIVO
+name: macOS GUI Final (Cloudflare)
 
 on: 
   workflow_dispatch:
@@ -9,36 +9,51 @@ jobs:
     timeout-minutes: 360 
 
     steps:
-      - name: Instalar Cloudflared y Configurar VNC
+      - name: Instalar Herramientas
         run: |
-          # 1. Instalar Cloudflared
           brew install cloudflare/cloudflare/cloudflared
-          
-          # 2. Configurar VNC
+          echo "✅ Cloudflared instalado."
+
+      - name: Configurar VNC y Forzar Gráficos
+        run: |
+          # 1. Configurar contraseña y activar VNC
           VNC_PASSWORD="Secreto123!"
           sudo /System/Library/CoreServices/RemoteManagement/ARDAgent.app/Contents/Resources/kickstart \
           -activate -configure -access -on \
           -clientopts -setvnclegacy -vnclegacy yes \
           -clientopts -setvncpw -vncpw "$VNC_PASSWORD" \
           -restart -agent -privs -all
+          
+          # 2. Forzar al sistema a no dormir y despertar el WindowServer
+          sudo systemsetup -setdisplaysleep Off > /dev/null 2>&1
+          
+          # 3. Lanzar aplicaciones en el espacio de usuario para generar imagen
+          # Esto "obliga" a macOS a dibujar algo en la pantalla virtual
+          gui_user_id=$(id -u)
+          sudo launchctl asuser $gui_user_id open -a Finder
+          sudo launchctl asuser $gui_user_id open -a System\ Settings
+          
+          echo "✅ VNC y Entorno Gráfico listos."
 
-          # 3. Iniciar Túnel de Cloudflare
-          # Esto genera una URL pública temporal para el puerto 5900
-          echo "🚀 Iniciando túnel..."
+      - name: Iniciar Túnel y Mantener Vivo
+        run: |
+          # Iniciar túnel en segundo plano
           cloudflared tunnel --url tcp://localhost:5900 > tunnel.log 2>&1 &
           
-          sleep 10 # Esperar a que genere el link
-
-      - name: Obtener Link de Conexión
-        run: |
+          echo "⏳ Esperando 15 segundos para estabilidad..."
+          sleep 15
+          
           echo "-------------------------------------------------------"
           echo "🔗 TU URL DE CONEXIÓN ES:"
-          grep -oE "https://[a-zA-Z0-9.-]+\.trycloudflare\.com" tunnel.log | sed 's/https:\/\///' || echo "Reintentando..."
+          # Extraer la URL de Cloudflare del log
+          grep -oE "https://[a-zA-Z0-9.-]+\.trycloudflare\.com" tunnel.log | sed 's/https:\/\///'
           echo "-------------------------------------------------------"
-          echo "👀 PASOS PARA WINDOWS:"
-          echo "1. Descarga cloudflared en tu PC (google: cloudflared windows download)"
-          echo "2. En tu CMD de Windows escribe:"
-          echo "   cloudflared access tcp --hostname TU_URL_AQUÍ --listener localhost:5900"
-          echo "3. Abre VNC Viewer en localhost:5900"
+          echo "👀 PASOS PARA CONECTAR DESDE WINDOWS:"
+          echo "1. Abre tu CMD en Windows."
+          echo "2. Ejecuta: .\cloudflared-windows-amd64.exe access tcp --hostname TU_URL_AQUÍ --listener localhost:5900"
+          echo "3. Abre TigerVNC y conéctate a: localhost:5900"
+          echo "4. Password: Secreto123!"
           echo "-------------------------------------------------------"
+          
+          # Mantener el workflow vivo por 6 horas
           sleep 21600
