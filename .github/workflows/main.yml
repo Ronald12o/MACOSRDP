@@ -1,4 +1,4 @@
-name: macOS + Tailscale + noVNC (FIX)
+name: macOS + Tailscale + noVNC (FINAL)
 
 on:
   workflow_dispatch:
@@ -11,7 +11,8 @@ jobs:
     steps:
       - name: Install dependencies
         run: |
-          brew install tailscale websockify
+          brew install tailscale
+          python3 -m pip install --user websockify
           git clone https://github.com/novnc/noVNC.git
 
       - name: Start Tailscale
@@ -29,6 +30,7 @@ jobs:
 
       - name: Start noVNC
         run: |
+          export PATH="$HOME/.local/bin:$PATH"
           ./noVNC/utils/novnc_proxy --vnc localhost:5900 --listen 6080 &
           echo "noVNC iniciado en puerto 6080"
 
@@ -36,7 +38,7 @@ jobs:
         run: |
           echo "IP Tailscale:"
           tailscale ip -4
-          echo "Abre en el navegador:"
+          echo "URL:"
           echo "http://IP_TAILSCALE:6080/vnc.html"
 
       - name: Keep Alive
